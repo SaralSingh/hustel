@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('room_messages', function (Blueprint $table) {
             $table->id();
+            $table->foreignUuid('room_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('user_name');
+            $table->text('message');
             $table->timestamps();
         });
     }

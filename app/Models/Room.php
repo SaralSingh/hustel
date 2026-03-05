@@ -20,4 +20,9 @@ class Room extends Model
             $model->access_key = Str::random(8);
         });
     }
+
+    public function messages()
+    {
+        return $this->hasMany(RoomMessage::class);
+    }
 }

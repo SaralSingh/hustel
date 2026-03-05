@@ -13,6 +13,11 @@ Route::get('/join/{id}',  [RoomController::class, 'waitingView'])->name('room.wa
 // ── API ────────────────────────────────────────────────────────────────────
 Route::post('/rooms',           [RoomController::class, 'create']);
 Route::get('/rooms/{id}',       [RoomController::class, 'show'])->name('room.show');
+
+// Chat routes
+Route::get('/rooms/{id}/chat',  [RoomController::class, 'fetchMessages'])->name('room.chat.index');
+Route::post('/rooms/{id}/chat', [RoomController::class, 'sendMessage'])->name('room.chat.store');
+
 Route::get('/proxy-video',      [RoomController::class, 'proxyVideo'])->name('video.proxy');
 Route::get('/clean-playlist',   [RoomController::class, 'cleanPlaylist'])->name('video.clean-playlist');
 Route::get('/youtube-stream',   [RoomController::class, 'youtubeStream'])->name('video.youtube-stream');

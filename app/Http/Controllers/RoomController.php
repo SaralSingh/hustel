@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Room;
 use App\Services\AdBlockService;
+use App\Services\ChatService;
 
 class RoomController extends Controller
 {
@@ -92,6 +93,38 @@ class RoomController extends Controller
             'm3u8_url' => $room->m3u8_url,
             'referer_url' => $room->referer_url
         ]);
+    }
+
+    // --- Chat Methods ---
+
+    public function fetchMessages($id, ChatService $chatService)
+    {
+        $room = Room::findOrFail($id);
+        $messages = $chatService->getRoomMessages($room->id);
+
+        return response()->json($messages);
+    }
+
+    public function sendMessage(Request $request, $id, ChatService $chatService)
+    {
+        $room = Room::findOrFail($id);
+        $request->validate([
+            'message' => 'required|string|max:1000',
+        ]);
+
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if (!$user) {
+            abort(401, 'Unauthenticated');
+        }
+
+        $message = $chatService->sendMessage(
+            $room,
+            $user,
+            $user->name ?: 'Viewer',
+            $request->message
+        );
+
+        return response()->json($message);
     }
 
     // Proxy video buffer to bypass CORS/Referer/User-Agent restrictions

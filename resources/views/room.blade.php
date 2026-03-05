@@ -301,6 +301,97 @@
         }
         .btn-reject:hover { background: rgba(239,68,68,0.2); }
 
+        /* ── Chat Panel ── */
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 250px;
+            border-top: 1px solid var(--border);
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-track { background: transparent; }
+        .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        
+        .chat-msg {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .chat-header {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .chat-author { font-size: 11px; font-weight: 700; color: var(--muted); }
+        .chat-author.host { color: var(--accent-lt); }
+        .chat-author.me { color: var(--green); }
+        .chat-time { font-size: 9px; color: rgba(255,255,255,0.3); }
+        
+        .chat-bubble {
+            background: var(--surface2);
+            padding: 8px 12px;
+            border-radius: 4px 12px 12px 12px;
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.4;
+            word-break: break-word;
+            width: fit-content;
+            max-width: 90%;
+        }
+        .chat-msg.me .chat-bubble {
+            background: rgba(124,58,237,0.15);
+            border: 1px solid rgba(124,58,237,0.3);
+            border-radius: 12px 4px 12px 12px;
+            align-self: flex-end;
+        }
+        .chat-msg.me .chat-header { flex-direction: row-reverse; }
+        
+        .chat-input-area {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+            display: flex;
+            gap: 8px;
+        }
+        .chat-input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .chat-input:focus { border-color: var(--accent); }
+        .btn-send {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-send:hover { background: #6d28d9; }
+        .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .empty-state {
             text-align: center;
             padding: 20px 16px;
@@ -417,6 +508,25 @@
         </div>
         @endif
 
+        <!-- Live Chat -->
+        <div class="chat-panel">
+            <div class="panel-header">
+                <span class="panel-title">💬 Live Chat</span>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="empty-state">
+                    <div class="empty-icon">💭</div>
+                    Say hello to the room!
+                </div>
+            </div>
+            <form class="chat-input-area" id="chat-form" onsubmit="sendChatMessage(event)">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="1000" autocomplete="off" required>
+                <button type="submit" class="btn-send" id="chat-send-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+            </form>
+        </div>
+
     </aside>
 </div>
 
@@ -428,6 +538,7 @@
     const M3U8_URL  = '{!! addslashes($room->m3u8_url) !!}';
     const REFERER   = '{!! addslashes($room->referer_url ?? "") !!}';
     const IS_ADMIN  = {{ $isAdmin ? 'true' : 'false' }};
+    const CURRENT_USER_NAME = IS_ADMIN ? 'Admin (Host)' : new URLSearchParams(window.location.search).get('name') || 'Viewer';
 
     // ── Ad-Blocker SW ────────────────────────────────────────────────────────
     if ('serviceWorker' in navigator) {
@@ -444,6 +555,7 @@
     let pendingYtInit = null;
     let lobbyChannel = null;
     let roomChannel  = null;
+    let renderedMessageIds = new Set();
 
     const avatarClasses = ['av-0','av-1','av-2','av-3','av-4','av-5'];
     function avatarClass(str) {
@@ -632,6 +744,9 @@
                     if (e.paused && !video.paused) video.pause();
                     else if (!e.paused && video.paused) video.play().catch(() => {});
                 }
+            })
+            .listen('NewChatMessage', (e) => {
+                appendChatMessage(e);
             });
 
         if (IS_ADMIN) {
@@ -737,6 +852,113 @@
         delete pendingReqs[tempId];
         renderRequests();
     }
+
+    // ── Chat Functionality ────────────────────────────────────────────────────
+    
+    function initChat() {
+        const chatContainer = document.getElementById('chat-messages');
+        chatContainer.innerHTML = `<div class="empty-state"><div class="spinner-lg" style="width:24px;height:24px;border-width:2px;margin: 0 auto 10px;"></div>Loading messages...</div>`;
+        
+        fetch(`/rooms/${ROOM_ID}/chat`)
+            .then(res => res.json())
+            .then(messages => {
+                chatContainer.innerHTML = '';
+                if (messages.length === 0) {
+                    chatContainer.innerHTML = `<div class="empty-state"><div class="empty-icon">💭</div>Say hello to the room!</div>`;
+                } else {
+                    messages.forEach(msg => appendChatMessage(msg, false));
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            })
+            .catch(err => {
+                chatContainer.innerHTML = `<div class="empty-state">Failed to load chat.</div>`;
+            });
+    }
+
+    function appendChatMessage(msg, scrollToBottom = true) {
+        // Prevent duplicate appending
+        if (renderedMessageIds.has(msg.id)) return;
+        renderedMessageIds.add(msg.id);
+
+        const chatContainer = document.getElementById('chat-messages');
+        
+        // Remove empty state if present
+        const emptyState = chatContainer.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+
+        const isMe = msg.user_name === CURRENT_USER_NAME;
+        const isHost = msg.user_name.includes('Host');
+        
+        let authorClass = 'chat-author';
+        if (isMe) authorClass += ' me';
+        else if (isHost) authorClass += ' host';
+
+        const timeStr = new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        const msgHtml = `
+            <div class="chat-msg ${isMe ? 'me' : ''}">
+                <div class="chat-header">
+                    <span class="${authorClass}">${escHtml(msg.user_name)}</span>
+                    <span class="chat-time">${timeStr}</span>
+                </div>
+                <div class="chat-bubble">${escHtml(msg.message)}</div>
+            </div>
+        `;
+        
+        chatContainer.insertAdjacentHTML('beforeend', msgHtml);
+        
+        if (scrollToBottom) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }
+
+    async function sendChatMessage(e) {
+        e.preventDefault();
+        
+        const input = document.getElementById('chat-input');
+        const btn = document.getElementById('chat-send-btn');
+        const text = input.value.trim();
+        
+        if (!text) return;
+        
+        input.disabled = true;
+        btn.disabled = true;
+        
+        try {
+            const res = await fetch(`/rooms/${ROOM_ID}/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ message: text })
+            });
+
+            if (res.ok) {
+                // Backend will broadcast it back to us via Echo, so we might want to temporarily optimistic update here 
+                // but since reverb is fast, listening to our own message via Echo is usually fine.
+                // However, Reverb broadcast `toOthers()` means we won't receive our own message via websocket.
+                // Thus we MUST append it manually.
+                const newMsg = await res.json();
+                appendChatMessage(newMsg);
+                input.value = '';
+            } else {
+                console.error("Failed to send message", await res.text());
+                alert("Failed to send message");
+            }
+        } catch (error) {
+            console.error("Network error sending message", error);
+        } finally {
+            input.disabled = false;
+            btn.disabled = false;
+            input.focus();
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        initChat();
+    });
 
     // ── Share / Leave ─────────────────────────────────────────────────────────
     function copyShareLink() {
