@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Hustel — Room {{ $roomId }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:        #07070f;
+            --surface:   rgba(255,255,255,0.04);
+            --surface2:  rgba(255,255,255,0.07);
+            --border:    rgba(255,255,255,0.08);
+            --accent:    #7c3aed;
+            --accent-lt: #a78bfa;
+            --text:      #e2e8f0;
+            --muted:     #64748b;
+            --green:     #10b981;
+            --red:       #ef4444;
+        }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Top Bar ── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .logo-sm {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent), #4f46e5);
+            border-radius: 8px;
+        }
+        .logo-sm svg { width: 16px; height: 16px; fill: #fff; }
+        .room-label { font-size: 14px; font-weight: 700; }
+        .room-label span { color: var(--muted); font-weight: 400; }
+        .live-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 100px;
+            padding: 3px 10px;
+            font-size: 11px; font-weight: 700;
+            color: #fca5a5;
+        }
+        .live-badge::before {
+            content: '';
+            width: 6px; height: 6px;
+            background: var(--red);
+            border-radius: 50%;
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
+        .btn-sm {
+            padding: 7px 16px; border-radius: 8px;
+            font-size: 12px; font-weight: 600;
+            cursor: pointer; border: none; font-family: inherit;
+            transition: all 0.18s;
+        }
+        .btn-ghost {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-ghost:hover { background: var(--surface2); }
+        .btn-danger {
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+        }
+        .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+        /* ── Share Banner ── */
+        .share-banner {
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(124,58,237,0.08);
+            border-bottom: 1px solid rgba(124,58,237,0.2);
+            padding: 10px 24px;
+            flex-wrap: wrap;
+        }
+        .share-banner-label { font-size: 12px; font-weight: 600; color: var(--accent-lt); white-space: nowrap; }
+        .share-url {
+            flex: 1;
+            font-size: 12px;
+            color: var(--muted);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .copy-btn {
+            padding: 5px 12px;
+            background: rgba(124,58,237,0.2);
+            border: 1px solid rgba(124,58,237,0.3);
+            border-radius: 6px;
+            color: var(--accent-lt);
+            font-size: 11px; font-weight: 600;
+            cursor: pointer; border: none; font-family: inherit;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        .copy-btn:hover { background: rgba(124,58,237,0.35); }
+
+        /* ── Main Layout ── */
+        .main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 0;
+            min-height: 0;
+        }
+
+        /* ── Video Area ── */
+        .video-area {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .player-wrap {
+            background: #000;
+            border-radius: 14px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            border: 1px solid var(--border);
+        }
+        .player-wrap video,
+        .player-wrap #yt-player,
+        .player-wrap iframe { width: 100% !important; height: 100% !important; }
+        #player-wrap:-webkit-full-screen { aspect-ratio: auto; width: 100%; height: 100%; border-radius: 0; border: none; }
+        #player-wrap:fullscreen { aspect-ratio: auto; width: 100%; height: 100%; border-radius: 0; border: none; }
+        #video { display: block; }
+        #yt-player { display: none; }
+
+        .viewer-controls {
+            position: absolute; bottom: 16px; right: 16px;
+            display: flex; gap: 8px; z-index: 10;
+        }
+        .v-btn {
+            background: rgba(0,0,0,0.6); color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px 12px; border-radius: 8px;
+            cursor: pointer; font-size: 13px; font-weight: 600;
+            backdrop-filter: blur(4px); transition: 0.2s;
+        }
+        .v-btn:hover { background: rgba(0,0,0,0.8); }
+
+        .loading-overlay {
+            position: absolute; inset: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.8);
+            gap: 14px;
+            border-radius: 14px;
+        }
+        .loading-overlay.show { display: flex; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner-lg {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent-lt);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        .loading-label { font-size: 13px; color: var(--muted); }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .panel-title {
+            font-size: 12px; font-weight: 700;
+            letter-spacing: 0.6px; text-transform: uppercase;
+            color: var(--muted);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .count-badge {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 1px 8px;
+            font-size: 11px; font-weight: 700;
+            color: var(--text);
+        }
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .panel-body::-webkit-scrollbar { width: 4px; }
+        .panel-body::-webkit-scrollbar-track { background: transparent; }
+        .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        /* ── Viewer Card ── */
+        .viewer-card {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            transition: background 0.15s;
+            margin-bottom: 4px;
+        }
+        .viewer-card:hover { background: var(--surface); }
+        .avatar {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700;
+            flex-shrink: 0;
+        }
+        .viewer-info { flex: 1; min-width: 0; }
+        .viewer-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .viewer-uid  { font-size: 10px; color: var(--muted); font-family: 'Courier New', monospace; }
+        .host-chip {
+            padding: 2px 8px; border-radius: 100px;
+            font-size: 10px; font-weight: 700;
+            background: rgba(124,58,237,0.2);
+            border: 1px solid rgba(124,58,237,0.3);
+            color: var(--accent-lt);
+        }
+
+        /* ── Divider between panels ── */
+        .panel-divider { border: none; border-top: 1px solid var(--border); }
+
+        /* ── Request Card ── */
+        .req-panel { flex-shrink: 0; }
+        .req-card {
+            background: rgba(251,191,36,0.06);
+            border: 1px solid rgba(251,191,36,0.18);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .req-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: rgba(251,191,36,0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+        .req-info { flex: 1; min-width: 0; }
+        .req-name { font-size: 13px; font-weight: 700; }
+        .req-uid { font-size: 10px; color: var(--muted); font-family: 'Courier New', monospace; margin-top: 2px; }
+        .req-actions { display: flex; gap: 6px; }
+        .btn-approve {
+            padding: 5px 12px; border-radius: 7px; border: none;
+            background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3);
+            color: #6ee7b7; font-size: 11px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: all 0.18s;
+        }
+        .btn-approve:hover { background: rgba(16,185,129,0.25); }
+        .btn-reject {
+            padding: 5px 10px; border-radius: 7px; border: none;
+            background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+            color: #fca5a5; font-size: 11px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: all 0.18s;
+        }
+        .btn-reject:hover { background: rgba(239,68,68,0.2); }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px 16px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .empty-state .empty-icon { font-size: 24px; margin-bottom: 8px; }
+
+        /* ── Avatar colours ── */
+        .av-0 { background: rgba(124,58,237,0.25); color: #a78bfa; }
+        .av-1 { background: rgba(16,185,129,0.2);  color: #6ee7b7; }
+        .av-2 { background: rgba(245,158,11,0.2);  color: #fcd34d; }
+        .av-3 { background: rgba(239,68,68,0.2);   color: #fca5a5; }
+        .av-4 { background: rgba(59,130,246,0.2);  color: #93c5fd; }
+        .av-5 { background: rgba(236,72,153,0.2);  color: #f9a8d4; }
+
+        /* Notification dot for requests */
+        .notif-dot {
+            width: 7px; height: 7px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: none;
+        }
+        .notif-dot.show { display: inline-block; }
+
+        @media (max-width: 768px) {
+            .main { grid-template-columns: 1fr; }
+            .sidebar { border-left: none; border-top: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Top Bar ── -->
+<header class="topbar">
+    <div class="topbar-left">
+        <div class="logo-sm">
+            <svg viewBox="0 0 24 24"><path d="M4 8L12 3L20 8V16L12 21L4 16V8Z"/></svg>
+        </div>
+        <span class="room-label">Hustel <span>/ Room {{ $roomId }}</span></span>
+        <span class="live-badge">LIVE</span>
+    </div>
+    <div class="topbar-right">
+        <button class="btn-sm btn-ghost" onclick="copyShareLink()">🔗 Copy Invite</button>
+        <button class="btn-sm btn-danger" onclick="leaveRoom()">Leave</button>
+    </div>
+</header>
+
+<!-- ── Share Banner ── -->
+<div class="share-banner" id="share-banner">
+    <span class="share-banner-label">📨 Invite Link</span>
+    <span class="share-url" id="join-url">{{ $joinUrl }}</span>
+    <button class="copy-btn" onclick="copyShareLink()">Copy</button>
+</div>
+
+<!-- ── Main Layout ── -->
+<div class="main">
+
+    <!-- Video Area -->
+    <div class="video-area">
+        <div class="player-wrap" id="player-wrap">
+            <video id="video" controls autoplay muted playsinline></video>
+            <div id="yt-player"></div>
+            <div class="loading-overlay show" id="loading-overlay">
+                <div class="spinner-lg"></div>
+                <span class="loading-label" id="loading-label">Loading stream…</span>
+            </div>
+            @if(!$isAdmin)
+            <div class="viewer-controls">
+                <button class="v-btn" id="audio-btn" onclick="toggleAudio()">🔇 Unmute</button>
+                <button class="v-btn" onclick="toggleFullScreen()">⛶ Fullscreen</button>
+            </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <!-- Live Viewers -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">
+                    👥 Viewers
+                    <span class="count-badge" id="viewer-count">0</span>
+                </span>
+            </div>
+            <div class="panel-body" id="viewer-list">
+                <div class="empty-state">
+                    <div class="empty-icon">🌐</div>
+                    No viewers yet
+                </div>
+            </div>
+        </div>
+
+        @if($isAdmin)
+        <hr class="panel-divider">
+
+        <!-- Pending Requests (admin only) -->
+        <div class="panel req-panel" id="requests-panel" style="max-height: 260px;">
+            <div class="panel-header">
+                <span class="panel-title">
+                    🔔 Requests
+                    <span class="count-badge" id="req-count">0</span>
+                    <span class="notif-dot" id="req-dot"></span>
+                </span>
+            </div>
+            <div class="panel-body" id="req-list">
+                <div class="empty-state" id="req-empty">
+                    <div class="empty-icon">✅</div>
+                    No pending requests
+                </div>
+            </div>
+        </div>
+        @endif
+
+    </aside>
+</div>
+
+<script>
+    // ── Config (injected from PHP) ────────────────────────────────────────────
+    const ROOM_ID   = '{{ $roomId }}';
+    const ROOM_KEY  = '{{ $key }}';
+    const JOIN_URL  = '{{ $joinUrl }}';
+    const M3U8_URL  = '{!! addslashes($room->m3u8_url) !!}';
+    const REFERER   = '{!! addslashes($room->referer_url ?? "") !!}';
+    const IS_ADMIN  = {{ $isAdmin ? 'true' : 'false' }};
+
+    // ── Ad-Blocker SW ────────────────────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/ad-blocker-sw.js', { scope: '/' })
+            .catch(e => console.warn('[AdBlock SW]', e));
+    }
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let liveUsers    = [];
+    let pendingReqs  = {};  // { tempId: { name, tempId } }
+    let hls          = null;
+    let ytPlayer     = null;
+    let ytAPIReady   = false;
+    let pendingYtInit = null;
+    let lobbyChannel = null;
+    let roomChannel  = null;
+
+    const avatarClasses = ['av-0','av-1','av-2','av-3','av-4','av-5'];
+    function avatarClass(str) {
+        let h = 0;
+        for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+        return avatarClasses[h % avatarClasses.length];
+    }
+    function initials(name) {
+        return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0,2);
+    }
+
+    // ── YouTube IFrame Setup ─────────────────────────────────────────────────
+    window.onYouTubeIframeAPIReady = function() {
+        ytAPIReady = true;
+        if (typeof pendingYtInit === 'function') { pendingYtInit(); pendingYtInit = null; }
+    };
+    (function() {
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+    })();
+
+    function extractYouTubeID(url) {
+        const r = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
+        const m = url.match(r);
+        return m ? m[1] : null;
+    }
+
+    // ── Initialise Room ───────────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', function() {
+        initWebSocket(); // MUST be first so roomChannel exists before video sync sets up
+        initVideo();
+    });
+
+    function setLoading(show, label = 'Loading stream…') {
+        const ov = document.getElementById('loading-overlay');
+        ov.classList.toggle('show', show);
+        document.getElementById('loading-label').textContent = label;
+    }
+
+    function initVideo() {
+        const video  = document.getElementById('video');
+        const ytDiv  = document.getElementById('yt-player');
+        const ytId   = extractYouTubeID(M3U8_URL);
+
+        if (ytId) {
+            video.style.display  = 'none';
+            ytDiv.style.display  = 'block';
+            setLoading(true, 'Loading YouTube player…');
+
+            const build = () => {
+                ytPlayer = new YT.Player('yt-player', {
+                    height: '100%', width: '100%',
+                    videoId: ytId,
+                    host: 'https://www.youtube-nocookie.com',
+                    playerVars: { 
+                        controls: IS_ADMIN ? 1 : 0, 
+                        disablekb: IS_ADMIN ? 0 : 1, 
+                        autoplay: 1, mute: 1, rel: 0, modestbranding: 1, iv_load_policy: 3 
+                    },
+                    events: {
+                        onReady: () => {
+                            setLoading(false);
+                            if (IS_ADMIN) {
+                                setInterval(() => {
+                                    if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING || ytPlayer.getPlayerState() === YT.PlayerState.PAUSED) {
+                                        roomChannel?.whisper('sync', { 
+                                            time: ytPlayer.getCurrentTime(), 
+                                            paused: ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING, 
+                                            rate: ytPlayer.getPlaybackRate() 
+                                        });
+                                    }
+                                }, 2000);
+                            } else {
+                                ytDiv.style.pointerEvents = 'none';
+                            }
+                        },
+                        onStateChange: (e) => {
+                            if (IS_ADMIN) {
+                                roomChannel?.whisper('sync', { 
+                                    time: ytPlayer.getCurrentTime(), 
+                                    paused: e.data !== YT.PlayerState.PLAYING, 
+                                    rate: ytPlayer.getPlaybackRate() 
+                                });
+                            }
+                        },
+                        onError: (e) => {
+                            if (e.data === 150 || e.data === 101) {
+                                ytDiv.style.display = 'none';
+                                video.style.display = 'block';
+                                if (!IS_ADMIN) { video.removeAttribute('controls'); video.style.pointerEvents = 'none'; }
+                                setLoading(true, 'Embed restricted — extracting via yt-dlp…');
+                                fetch(`/youtube-stream?url=${encodeURIComponent(M3U8_URL)}`)
+                                    .then(r => r.json())
+                                    .then(d => {
+                                        if (d.error) { setLoading(false); alert(d.error); return; }
+                                        video.src = `/proxy-video?url=${encodeURIComponent(d.stream_url)}`;
+                                        video.play().catch(()=>{});
+                                        setLoading(false);
+                                        setupNativeSync(video);
+                                    });
+                            }
+                        }
+                    }
+                });
+            };
+            if (ytAPIReady) build(); else pendingYtInit = build;
+
+        } else {
+            video.style.display = 'block';
+            ytDiv.style.display = 'none';
+            if (!IS_ADMIN) { video.removeAttribute('controls'); video.style.pointerEvents = 'none'; }
+            setLoading(true);
+
+            const isM3u8 = M3U8_URL.toLowerCase().includes('.m3u8');
+            const isProtected = M3U8_URL.includes('hakunaymatata.com');
+            let videoUrl = M3U8_URL;
+
+            if (isM3u8 && !isProtected && !REFERER) {
+                videoUrl = `/clean-playlist?url=${encodeURIComponent(M3U8_URL)}`;
+            } else {
+                videoUrl = `/proxy-video?url=${encodeURIComponent(M3U8_URL)}`;
+                if (REFERER) videoUrl += `&referer=${encodeURIComponent(REFERER)}`;
+            }
+
+            if (isM3u8 && !isProtected) {
+                if (Hls.isSupported()) {
+                    hls = new Hls();
+                    hls.loadSource(videoUrl);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(()=>{}); setLoading(false); });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = videoUrl;
+                    setLoading(false);
+                }
+            } else {
+                video.src = videoUrl;
+                video.addEventListener('loadedmetadata', () => setLoading(false), { once: true });
+            }
+
+            setupNativeSync(video);
+        }
+    }
+
+    // ── Video Sync ────────────────────────────────────────────────────────────
+    function setupNativeSync(video) {
+        if (!roomChannel || !IS_ADMIN) return;
+        const getPayload = () => ({ time: video.currentTime, paused: video.paused, rate: video.playbackRate });
+        roomChannel.joining(() => roomChannel.whisper('sync', getPayload()));
+        video.addEventListener('play',       () => roomChannel.whisper('sync', getPayload()));
+        video.addEventListener('pause',      () => roomChannel.whisper('sync', getPayload()));
+        video.addEventListener('seeked',     () => roomChannel.whisper('sync', getPayload()));
+        video.addEventListener('ratechange', () => roomChannel.whisper('sync', getPayload()));
+        setInterval(() => { if (!video.paused) roomChannel.whisper('sync', getPayload()); }, 2000);
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+    function initWebSocket() {
+        // Join the main room channel (for viewer presence + video sync)
+        roomChannel = Echo.join(`room.${ROOM_ID}`)
+            .here(users  => { liveUsers = users; renderViewers(); })
+            .joining(user => { liveUsers.push(user); renderViewers(); })
+            .leaving(user => { 
+                liveUsers = liveUsers.filter(u => u.id !== user.id); 
+                renderViewers(); 
+                if (!IS_ADMIN && user.name && user.name.includes('Host')) {
+                    alert('The host has ended the room.');
+                    window.location.href = '/';
+                }
+            })
+            .listenForWhisper('sync', (e) => {
+                if (IS_ADMIN) return;
+                const video = document.getElementById('video');
+                
+                if (ytPlayer && typeof ytPlayer.getPlayerState === 'function' && document.getElementById('yt-player').style.display !== 'none') {
+                    // Sync YouTube IFrame player
+                    if (Math.abs(ytPlayer.getCurrentTime() - e.time) > 0.5) ytPlayer.seekTo(e.time, true);
+                    if (e.rate !== undefined && ytPlayer.getPlaybackRate() !== e.rate) ytPlayer.setPlaybackRate(e.rate);
+                    const state = ytPlayer.getPlayerState();
+                    if (!e.paused && state !== YT.PlayerState.PLAYING) ytPlayer.playVideo();
+                    else if (e.paused && state !== YT.PlayerState.PAUSED) ytPlayer.pauseVideo();
+                } else if (video) {
+                    // Sync Native video
+                    if (e.rate !== undefined && video.playbackRate !== e.rate) video.playbackRate = e.rate;
+                    if (Math.abs(video.currentTime - e.time) > 0.5) video.currentTime = e.time;
+                    if (e.paused && !video.paused) video.pause();
+                    else if (!e.paused && video.paused) video.play().catch(() => {});
+                }
+            });
+
+        if (IS_ADMIN) {
+            // Join lobby channel as admin to hear join requests
+            lobbyChannel = Echo.join(`lobby.${ROOM_ID}`)
+                .listenForWhisper('join-request', (e) => {
+                    pendingReqs[e.tempId] = e;
+                    renderRequests();
+                });
+        }
+    }
+
+    // ── Render Viewers ────────────────────────────────────────────────────────
+    function renderViewers() {
+        document.getElementById('viewer-count').textContent = liveUsers.length;
+        const list = document.getElementById('viewer-list');
+        if (!liveUsers.length) {
+            list.innerHTML = `<div class="empty-state"><div class="empty-icon">🌐</div>No viewers yet</div>`;
+            return;
+        }
+        list.innerHTML = liveUsers.map((u, i) => {
+            const ac = avatarClass(u.name || '?');
+            const init = initials(u.name || '?');
+            const isHost = u.name && u.name.includes('Host');
+            return `
+            <div class="viewer-card">
+                <div class="avatar ${ac}">${init}</div>
+                <div class="viewer-info">
+                    <div class="viewer-name">${escHtml(u.name || 'Anon')}</div>
+                    <div class="viewer-uid">ID: ${u.id}</div>
+                </div>
+                ${isHost ? '<span class="host-chip">HOST</span>' : ''}
+            </div>`;
+        }).join('');
+    }
+
+    // ── Render Requests ───────────────────────────────────────────────────────
+    function renderRequests() {
+        const reqs = Object.values(pendingReqs);
+        document.getElementById('req-count').textContent = reqs.length;
+        const dot = document.getElementById('req-dot');
+        dot.classList.toggle('show', reqs.length > 0);
+
+        const list = document.getElementById('req-list');
+        if (!reqs.length) {
+            list.innerHTML = `<div class="empty-state" id="req-empty"><div class="empty-icon">✅</div>No pending requests</div>`;
+            return;
+        }
+        list.innerHTML = reqs.map(r => `
+            <div class="req-card" id="req-${r.tempId}">
+                <div class="req-avatar">👤</div>
+                <div class="req-info">
+                    <div class="req-name">${escHtml(r.name)}</div>
+                    <div class="req-uid">${r.tempId}</div>
+                </div>
+                <div class="req-actions">
+                    <button class="btn-approve" onclick="approveReq('${r.tempId}')">✓ Allow</button>
+                    <button class="btn-reject"  onclick="rejectReq('${r.tempId}')">✕</button>
+                </div>
+            </div>`).join('');
+    }
+
+    function toggleFullScreen() {
+        const wrap = document.getElementById('player-wrap');
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            if (wrap.requestFullscreen) wrap.requestFullscreen();
+            else if (wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+    }
+
+    function toggleAudio() {
+        const btn = document.getElementById('audio-btn');
+        const video = document.getElementById('video');
+        let isMuted = false;
+        
+        if (ytPlayer && typeof ytPlayer.isMuted === 'function' && document.getElementById('yt-player').style.display !== 'none') {
+            if (ytPlayer.isMuted()) {
+                ytPlayer.unMute();
+                isMuted = false;
+            } else {
+                ytPlayer.mute();
+                isMuted = true;
+            }
+        } else if (video) {
+            video.muted = !video.muted;
+            isMuted = video.muted;
+        }
+        
+        btn.innerHTML = isMuted ? '🔇 Unmute' : '🔊 Mute';
+    }
+
+    function approveReq(tempId) {
+        lobbyChannel.whisper('approved', { tempId: tempId, accessKey: ROOM_KEY });
+        delete pendingReqs[tempId];
+        renderRequests();
+    }
+
+    function rejectReq(tempId) {
+        lobbyChannel.whisper('rejected', { tempId: tempId });
+        delete pendingReqs[tempId];
+        renderRequests();
+    }
+
+    // ── Share / Leave ─────────────────────────────────────────────────────────
+    function copyShareLink() {
+        navigator.clipboard.writeText(JOIN_URL).then(() => {
+            const btn = document.querySelector('.copy-btn');
+            if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
+        });
+    }
+
+    function leaveRoom() {
+        Echo.leave(`room.${ROOM_ID}`);
+        Echo.leave(`lobby.${ROOM_ID}`);
+        window.location.href = '/';
+    }
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+</script>
+</body>
+</html>

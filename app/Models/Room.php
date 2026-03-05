@@ -10,7 +10,7 @@ class Room extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['id', 'm3u8_url', 'access_key'];
+    protected $fillable = ['id', 'm3u8_url', 'access_key', 'referer_url'];
 
     protected static function boot()
     {
