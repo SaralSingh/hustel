@@ -305,9 +305,8 @@
         .chat-panel {
             display: flex;
             flex-direction: column;
-            flex: 1;
-            min-height: 250px;
-            border-top: 1px solid var(--border);
+            height: 450px; /* Fixed height to prevent expanding and pushing video */
+            border-bottom: 1px solid var(--border);
         }
         .chat-messages {
             flex: 1;
@@ -471,11 +470,30 @@
     <!-- Sidebar -->
     <aside class="sidebar">
 
+        <!-- Live Chat -->
+        <div class="chat-panel">
+            <div class="panel-header">
+                <span class="panel-title">💬 Live Chat</span>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="empty-state">
+                    <div class="empty-icon">💭</div>
+                    Say hello to the room!
+                </div>
+            </div>
+            <form class="chat-input-area" id="chat-form" onsubmit="sendChatMessage(event)">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="1000" autocomplete="off" required>
+                <button type="submit" class="btn-send" id="chat-send-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+            </form>
+        </div>
+
         <!-- Live Viewers -->
         <div class="panel">
             <div class="panel-header">
                 <span class="panel-title">
-                    👥 Viewers
+                    � Viewers
                     <span class="count-badge" id="viewer-count">0</span>
                 </span>
             </div>
@@ -507,25 +525,6 @@
             </div>
         </div>
         @endif
-
-        <!-- Live Chat -->
-        <div class="chat-panel">
-            <div class="panel-header">
-                <span class="panel-title">💬 Live Chat</span>
-            </div>
-            <div class="chat-messages" id="chat-messages">
-                <div class="empty-state">
-                    <div class="empty-icon">💭</div>
-                    Say hello to the room!
-                </div>
-            </div>
-            <form class="chat-input-area" id="chat-form" onsubmit="sendChatMessage(event)">
-                <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="1000" autocomplete="off" required>
-                <button type="submit" class="btn-send" id="chat-send-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                </button>
-            </form>
-        </div>
 
     </aside>
 </div>
