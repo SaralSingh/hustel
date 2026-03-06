@@ -420,6 +420,18 @@
             cursor: pointer; font-family: inherit; transition: all 0.18s;
         }
         .btn-reject:hover { background: rgba(239,68,68,0.2); }
+        .btn-kick {
+            width: 26px; height: 26px;
+            border-radius: 50%; border: none;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: #fca5a5;
+            font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: all 0.18s;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-family: inherit;
+        }
+        .btn-kick:hover { background: rgba(239,68,68,0.3); color: #fff; transform: scale(1.1); }
 
         /* ── Chat Panel ── */
         .chat-panel {
@@ -874,6 +886,7 @@
     const M3U8_URL  = '{!! addslashes($room->m3u8_url) !!}';
     const REFERER   = '{!! addslashes($room->referer_url ?? "") !!}';
     const IS_ADMIN  = {{ $isAdmin ? 'true' : 'false' }};
+    const CURRENT_USER_ID = {{ Auth::id() ?? 'null' }};
     const CURRENT_USER_NAME = IS_ADMIN ? 'Admin (Host)' : new URLSearchParams(window.location.search).get('name') || 'Viewer';
 
     // ── Ad-Blocker SW ────────────────────────────────────────────────────────
@@ -1055,10 +1068,25 @@
             .here(users  => { liveUsers = users; renderViewers(); })
             .joining(user => { liveUsers.push(user); renderViewers(); })
             .leaving(user => { 
-                liveUsers = liveUsers.filter(u => u.id !== user.id); 
-                renderViewers(); 
+                liveUsers = liveUsers.filter(u => u.id !== user.id);
+                renderViewers();
+                // Host left — silently redirect viewers home (no alert)
                 if (!IS_ADMIN && user.name && user.name.includes('Host')) {
-                    alert('The host has ended the room.');
+                    Echo.leave(`room.${ROOM_ID}`);
+                    window.location.href = '/';
+                }
+            })
+            .listenForWhisper('room-closed', () => {
+                // Admin explicitly closed the room — redirect immediately
+                if (!IS_ADMIN) {
+                    Echo.leave(`room.${ROOM_ID}`);
+                    window.location.href = '/';
+                }
+            })
+            .listenForWhisper('kicked', (e) => {
+                // Check if this viewer is the one being kicked
+                if (!IS_ADMIN && CURRENT_USER_ID !== null && e.userId == CURRENT_USER_ID) {
+                    Echo.leave(`room.${ROOM_ID}`);
                     window.location.href = '/';
                 }
             })
@@ -1107,6 +1135,9 @@
             const ac = avatarClass(u.name || '?');
             const init = initials(u.name || '?');
             const isHost = u.name && u.name.includes('Host');
+            const kickBtn = (IS_ADMIN && !isHost)
+                ? `<button class="btn-kick" onclick="kickViewer(${u.id})" title="Remove viewer">✕</button>`
+                : '';
             return `
             <div class="viewer-card">
                 <div class="avatar ${ac}">${init}</div>
@@ -1115,6 +1146,7 @@
                     <div class="viewer-uid">ID: ${u.id}</div>
                 </div>
                 ${isHost ? '<span class="host-chip">HOST</span>' : ''}
+                ${kickBtn}
             </div>`;
         }).join('');
     }
@@ -1311,9 +1343,22 @@
     }
 
     function leaveRoom() {
-        Echo.leave(`room.${ROOM_ID}`);
-        Echo.leave(`lobby.${ROOM_ID}`);
-        window.location.href = '/';
+        if (IS_ADMIN) {
+            // Whisper room-closed so viewers redirect immediately, then leave
+            roomChannel?.whisper('room-closed', {});
+            setTimeout(() => {
+                Echo.leave(`room.${ROOM_ID}`);
+                Echo.leave(`lobby.${ROOM_ID}`);
+                window.location.href = '/';
+            }, 300);
+        } else {
+            Echo.leave(`room.${ROOM_ID}`);
+            window.location.href = '/';
+        }
+    }
+
+    function kickViewer(userId) {
+        roomChannel?.whisper('kicked', { userId });
     }
 
     // ── Mobile + Desktop Panel Switching ─────────────────────────────────────
