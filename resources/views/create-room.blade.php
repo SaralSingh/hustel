@@ -226,6 +226,11 @@
         </div>
         <h1>Hustel</h1>
         <p>Watch together, in real time.</p>
+        
+        <form style="margin-top:20px;" method="POST" action="{{ route('admin.logout') }}">
+            @csrf
+            <button style="background:transparent; border:1px solid rgba(255,255,255,0.1); color:var(--text); padding:6px 12px; border-radius:8px; cursor:pointer;" type="submit">Logout Admin</button>
+        </form>
     </div>
 
     <!-- Create Room Card -->

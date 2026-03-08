@@ -1342,10 +1342,21 @@
         });
     }
 
-    function leaveRoom() {
+    async function leaveRoom() {
         if (IS_ADMIN) {
-            // Whisper room-closed so viewers redirect immediately, then leave
+            // Tell the server this room is permanently ended
+            try {
+                await fetch(`/rooms/${ROOM_ID}/end`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+                });
+            } catch (err) {
+                console.error("Failed to mark room as ended on server", err);
+            }
+
+            // Whisper room-closed so currently connected viewers redirect immediately
             roomChannel?.whisper('room-closed', {});
+            
             setTimeout(() => {
                 Echo.leave(`room.${ROOM_ID}`);
                 Echo.leave(`lobby.${ROOM_ID}`);

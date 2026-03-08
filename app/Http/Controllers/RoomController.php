@@ -16,6 +16,7 @@ class RoomController extends Controller
             'm3u8_url'    => 'required|string',
             'referer_url' => 'nullable|string'
         ]);
+
         $room = Room::create([
             'm3u8_url'    => $request->m3u8_url,
             'referer_url' => $request->referer_url
@@ -24,6 +25,16 @@ class RoomController extends Controller
             'room_id'    => $room->id,
             'access_key' => $room->access_key,
         ]);
+    }
+
+    // End room (Admin only)
+    public function endRoom(Request $request, $id)
+    {
+        $room = Room::findOrFail($id);
+        $room->is_ended = true;
+        $room->save();
+
+        return response()->json(['success' => true]);
     }
 
     // Render the main video room view (validates key, then renders Blade)
@@ -36,10 +47,8 @@ class RoomController extends Controller
             abort(403, 'Invalid room key.');
         }
 
-        // If 'uid' param is present, this is an APPROVED VIEWER — not the host.
-        // The admin (host) arrives here without a uid param.
-        $uid     = $request->query('uid');
-        $isAdmin = ($uid === null || $uid === '');
+        // The admin (host) arrives here with a valid admin session.
+        $isAdmin = \Illuminate\Support\Facades\Auth::guard('admin')->check();
 
         // Log in a guest user for presence channel authentication
         if (!\Illuminate\Support\Facades\Auth::check()) {
@@ -51,6 +60,10 @@ class RoomController extends Controller
             $user->name = $username;
             $user->save();
             \Illuminate\Support\Facades\Auth::login($user);
+        }
+
+        if ($room->is_ended) {
+            return redirect('/')->with('error', 'This room has ended.');
         }
 
         return view('room', [
@@ -78,6 +91,10 @@ class RoomController extends Controller
         $room = Room::findOrFail($id);
         if ($request->key !== $room->access_key) {
             abort(403, 'Invalid key');
+        }
+
+        if ($room->is_ended) {
+            abort(403, 'Room has ended');
         }
 
         if (!\Illuminate\Support\Facades\Auth::check()) {
