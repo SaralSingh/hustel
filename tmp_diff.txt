@@ -1,0 +1,163 @@
+diff --git a/resources/views/admin-login.blade.php b/resources/views/admin-login.blade.php
+index 8e05711..434a560 100644
+--- a/resources/views/admin-login.blade.php
++++ b/resources/views/admin-login.blade.php
+@@ -29,7 +29,8 @@
+             display: flex;
+             align-items: center;
+             justify-content: center;
+-            overflow: hidden;
++            overflow-x: hidden;
++            overflow-y: auto;
+         }
+ 
+         /* Ambient background orbs */
+@@ -53,12 +54,36 @@
+             bottom: -100px; right: -100px;
+         }
+ 
+-        .page { position: relative; z-index: 1; width: 100%; padding: 24px; }
++        .page {
++            position: relative;
++            z-index: 1;
++            width: 100%;
++            max-width: 1000px;
++            padding: 24px;
++            display: flex;
++            align-items: center;
++            justify-content: space-between;
++            gap: 60px;
++        }
++
++        @media (max-width: 768px) {
++            .page {
++                flex-direction: column;
++                justify-content: center;
++            }
++        }
+ 
+         /* ── Logo ── */
+         .logo {
+-            text-align: center;
+-            margin-bottom: 48px;
++            text-align: left;
++            flex: 1;
++        }
++
++        @media (max-width: 768px) {
++            .logo {
++                text-align: center;
++                margin-bottom: 32px;
++            }
+         }
+         .logo-icon {
+             display: inline-flex;
+@@ -75,8 +100,8 @@
+ 
+         /* ── Card ── */
+         .card {
++            width: 100%;
+             max-width: 420px;
+-            margin: 0 auto;
+             background: var(--surface);
+             border: 1px solid var(--border);
+             border-radius: var(--radius);
+diff --git a/resources/views/create-room.blade.php b/resources/views/create-room.blade.php
+index 42ab9d6..39a9815 100644
+--- a/resources/views/create-room.blade.php
++++ b/resources/views/create-room.blade.php
+@@ -28,7 +28,8 @@
+             display: flex;
+             align-items: center;
+             justify-content: center;
+-            overflow: hidden;
++            overflow-x: hidden;
++            overflow-y: auto;
+         }
+ 
+         /* Ambient background orbs */
+@@ -52,12 +53,36 @@
+             bottom: -100px; right: -100px;
+         }
+ 
+-        .page { position: relative; z-index: 1; width: 100%; padding: 24px; }
++        .page {
++            position: relative;
++            z-index: 1;
++            width: 100%;
++            max-width: 1000px;
++            padding: 24px;
++            display: flex;
++            align-items: center;
++            justify-content: space-between;
++            gap: 60px;
++        }
++
++        @media (max-width: 768px) {
++            .page {
++                flex-direction: column;
++                justify-content: center;
++            }
++        }
+ 
+         /* ── Logo ── */
+         .logo {
+-            text-align: center;
+-            margin-bottom: 48px;
++            text-align: left;
++            flex: 1;
++        }
++
++        @media (max-width: 768px) {
++            .logo {
++                text-align: center;
++                margin-bottom: 32px;
++            }
+         }
+         .logo-icon {
+             display: inline-flex;
+@@ -75,8 +100,8 @@
+ 
+         /* ── Card ── */
+         .card {
++            width: 100%;
+             max-width: 520px;
+-            margin: 0 auto;
+             background: var(--surface);
+             border: 1px solid var(--border);
+             border-radius: var(--radius);
+@@ -166,6 +191,19 @@
+             cursor: not-allowed;
+             transform: none;
+         }
++        .btn-outline {
++            background: rgba(255,255,255,0.03);
++            border: 1px solid var(--border);
++            color: var(--text);
++            width: auto;
++            padding: 10px 20px;
++        }
++        .btn-outline:hover {
++            background: rgba(239, 68, 68, 0.1); /* Subtle red tint on hover since it's a logout button */
++            border-color: rgba(239, 68, 68, 0.3);
++            color: #fca5a5;
++            transform: translateY(-1px);
++        }
+         .btn svg { width: 18px; height: 18px; }
+ 
+         /* ── Type selector ── */
+@@ -227,9 +265,12 @@
+         <h1>Hustel</h1>
+         <p>Watch together, in real time.</p>
+         
+-        <form style="margin-top:20px;" method="POST" action="{{ route('admin.logout') }}">
++        <form style="margin-top: 32px;" method="POST" action="{{ route('admin.logout') }}">
+             @csrf
+-            <button style="background:transparent; border:1px solid rgba(255,255,255,0.1); color:var(--text); padding:6px 12px; border-radius:8px; cursor:pointer;" type="submit">Logout Admin</button>
++            <button type="submit" class="btn btn-outline">
++                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
++                Logout Admin
++            </button>
+         </form>
+     </div>
+ 

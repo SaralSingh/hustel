@@ -29,7 +29,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         /* Ambient background orbs */
@@ -53,12 +54,36 @@
             bottom: -100px; right: -100px;
         }
 
-        .page { position: relative; z-index: 1; width: 100%; padding: 24px; }
+        .page {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 1000px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 60px;
+        }
+
+        @media (max-width: 768px) {
+            .page {
+                flex-direction: column;
+                justify-content: center;
+            }
+        }
 
         /* ── Logo ── */
         .logo {
-            text-align: center;
-            margin-bottom: 48px;
+            text-align: left;
+            flex: 1;
+        }
+
+        @media (max-width: 768px) {
+            .logo {
+                text-align: center;
+                margin-bottom: 32px;
+            }
         }
         .logo-icon {
             display: inline-flex;
@@ -75,8 +100,8 @@
 
         /* ── Card ── */
         .card {
+            width: 100%;
             max-width: 420px;
-            margin: 0 auto;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
